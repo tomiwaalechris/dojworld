@@ -38,12 +38,10 @@ export function LoginForm({
         password,
       });
       if (error) throw error;
-      // Load the hotel entry route using the new authenticated session.
-      router.replace("/manage");
-      router.refresh();
+      // Hard navigation ensures cookies are sent cleanly and avoids router race conditions
+      window.location.href = "/manage";
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : "An error occurred");
-    } finally {
       setIsLoading(false);
     }
   };
