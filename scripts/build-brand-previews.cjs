@@ -17,8 +17,8 @@ async function main() {
   </svg>`);
   const preview = await sharp({create:{width:1200,height:630,channels:4,background:'#0b1821'}}).composite([{input:photo,left:580,top:0},{input:text,left:0,top:0},{input:logo,left:1080,top:40}]).png().toBuffer();
   await Promise.all(['app/opengraph-image.png','app/twitter-image.png'].map(path=>fs.writeFile(path,preview)));
-  await sharp('public/dojworld/logo.png').resize(180,180).png().toFile('app/apple-icon.png');
-  const png = await sharp('public/dojworld/logo.png').resize(64,64).png().toBuffer();
+  await sharp('public/dojworld/logo.png').resize(180,180).ensureAlpha().png().toFile('app/apple-icon.png');
+  const png = await sharp('public/dojworld/logo.png').resize(64,64).ensureAlpha().png().toBuffer();
   const header = Buffer.alloc(22);
   header.writeUInt16LE(1,2);header.writeUInt16LE(1,4);header[6]=64;header[7]=64;
   header.writeUInt16LE(1,10);header.writeUInt16LE(32,12);header.writeUInt32LE(png.length,14);header.writeUInt32LE(22,18);
