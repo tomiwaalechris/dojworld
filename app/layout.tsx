@@ -10,12 +10,16 @@ const dashboardFont = localFont({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://dojworld.vercel.app"),
+  applicationName: "DOJ World Suites",
+  openGraph: { siteName: "DOJ World Suites", locale: "en_NG", type: "website" },
+  twitter: { card: "summary_large_image" },
   title: "DOJ World Suites | A Stay That’s All About You",
   description: "Discover DOJ World Suites in Ikeja, Lagos. Explore our rooms, restaurant and bar, and plan your next stay at 13B Bamishile Street, off Allen Avenue.",
   icons: {
     icon: "/icon.svg",
     shortcut: "/icon.svg",
-    apple: "/icon.svg",
+    apple: "/apple-icon.png",
   },
 };
 
