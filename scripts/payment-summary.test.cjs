@@ -1,0 +1,15 @@
+const test=require('node:test');
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const vm=require('node:vm');
+const ts=require('typescript');
+const exportsObject={};
+vm.runInNewContext(ts.transpileModule(fs.readFileSync(require('node:path').join(__dirname,'../lib/booking/payment-summary.ts'),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,{exports:exportsObject,Number,Math});
+const {parsePaymentSummary,roomPaymentStatus,roomBalance}=exportsObject;
+const summary=(gross=0,refund=0,total=21000000)=>parsePaymentSummary({reservation_id:'stay',room_total_kobo:total,gross_paid_kobo:gross,refunded_kobo:refund,net_paid_kobo:gross-refund,payment_methods:gross?['Paystack online']:[],latest_payment_id:gross?'receipt':null});
+test('a reservation with no actual receipt is unpaid',()=>{assert.equal(roomPaymentStatus(summary()).label,'Unpaid');assert.equal(roomBalance(summary()),21000000);});
+test('first night advance is part payment of a three night stay',()=>{assert.equal(roomPaymentStatus(summary(7000000)).label,'Part paid');assert.equal(roomBalance(summary(7000000)),14000000);});
+test('a full advance settles accommodation regardless of accounting deposit designation',()=>{assert.equal(roomPaymentStatus(summary(21000000)).label,'Room paid in full');assert.equal(roomBalance(summary(21000000)),0);});
+test('actual refunds reduce paid amounts and reopen the appropriate room balance',()=>{assert.equal(roomPaymentStatus(summary(21000000,7000000)).label,'Part paid');assert.equal(roomBalance(summary(21000000,7000000)),7000000);assert.equal(roomPaymentStatus(summary(21000000,21000000)).label,'Refunded');});
+test('complimentary stays and surplus payments have no negative room balance',()=>{assert.equal(roomPaymentStatus(summary(0,0,0)).label,'Complimentary');assert.equal(roomBalance(summary(22000000)),0);});
+test('inconsistent or unsafe financial data remains unavailable instead of unpaid',()=>{for(const bad of [{room_total_kobo:9007199254740992},{net_paid_kobo:1},{refunded_kobo:100}])assert.equal(parsePaymentSummary({...{reservation_id:'stay',room_total_kobo:100,gross_paid_kobo:0,refunded_kobo:0,net_paid_kobo:0,payment_methods:[],latest_payment_id:null},...bad}),undefined);});

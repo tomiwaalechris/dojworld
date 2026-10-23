@@ -1,0 +1,27 @@
+"use client";
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { CheckCircle2, Clock3, Phone, Printer, RefreshCw } from "lucide-react";
+import type { BookingStatus } from "@/lib/booking/types";
+import { money, rooms, roomSlug } from "@/lib/dojworld";
+import "@/app/dojworld.css";
+const labels={cancelled:"Your reservation was cancelled",confirmed:"Your reservation is confirmed",requested:"Your request has been received",payment_pending:"Waiting for payment confirmation",expired:"Your reservation hold has expired",rejected:"Your request could not be approved",payment_review:"Payment received—reception will assist you"};
+export function BookingConfirmation() {
+  const [status,setStatus]=useState<BookingStatus>();const [error,setError]=useState("");const [revision,setRevision]=useState(0);const [updated,setUpdated]=useState("");
+  useEffect(()=>{
+    const id=new URLSearchParams(window.location.search).get("id");let stopped=false;let timer:ReturnType<typeof setTimeout>;let attempts=0;
+    if(!id){setError("Open the confirmation page from your booking.");return;}
+    async function update(verify=false) {
+      try {
+        if(document.visibilityState==="hidden"){timer=setTimeout(()=>update(false),30000);return;}
+        const response=await fetch(verify?"/api/booking/verify":`/api/booking/status?id=${encodeURIComponent(id!)}`,verify?{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id})}:{cache:"no-store"});
+        const result=await response.json();if(!response.ok)throw new Error(result.error);
+        if(stopped)return;setStatus(result);setError("");setUpdated(new Date().toLocaleTimeString("en-NG",{timeZone:"Africa/Lagos",hour:"2-digit",minute:"2-digit"}));
+        clearTimeout(timer);const pending=result.state==="payment_pending"||result.state==="requested";attempts++;timer=setTimeout(()=>update(result.state==="payment_pending"&&attempts<24&&attempts%6===0),pending&&attempts<24?5000:30000);
+      }catch(e){if(!stopped){setError(e instanceof Error?e.message:"Could not load your booking.");if(verify)timer=setTimeout(()=>update(false),1500);}}
+    }
+    const onVisible=()=>{if(document.visibilityState==="visible")void update(false);};document.addEventListener("visibilitychange",onVisible);void update(true);return()=>{stopped=true;clearTimeout(timer);document.removeEventListener("visibilitychange",onVisible);};
+  },[revision]);
+  const title=status?status.reservationStatus==="checked_out"?"Your stay is complete":status.reservationStatus==="checked_in"?"Welcome to Dojworld":labels[status.state]:error?"We couldn’t load your confirmation":"Checking your reservation…";
+  return <div className="doj-site"><main className="doj-confirmation-page"><Link href="/" className="doj-confirmation-brand">DOJ WORLD SUITES</Link><section className="doj-confirmation-card">{status?.state==="confirmed"?<CheckCircle2 size={38}/>:<Clock3 size={38}/>}<h1>{title}</h1>{error&&<p role="alert">{error}</p>}{status&&<><p>{status.state==="requested"?"Reception will contact you using the details you provided. This request does not reserve a room until the hotel approves it.":status.state==="payment_review"?"Your payment is recorded. Your room has not been confirmed. Please contact reception with the reference below to arrange a room or refund.":status.state==="payment_pending"?"If you have paid, please wait while we confirm it. Do not pay again. You can contact reception with your booking reference.":status.state==="confirmed"?"We look forward to welcoming you to Ikeja. Keep this reference for your arrival.":"Contact reception if you need help arranging another stay."}</p><div className="doj-reference">Booking reference<strong>{status.reference}</strong></div><dl><div><dt>Room</dt><dd>{status.roomName??rooms.find(r=>roomSlug(r)===status.slug)?.name??status.slug}</dd></div><div><dt>Dates</dt><dd>{status.arrival} → {status.departure}</dd></div>{status.actualDeparture&&<div><dt>Actual departure</dt><dd>{status.actualDeparture}</dd></div>}<div><dt>Guests</dt><dd>{status.guests}</dd></div><div><dt>Total</dt><dd>{money(status.totalKobo/100)}</dd></div><div><dt>Paid</dt><dd>{money(status.paidKobo/100)}</dd></div>{status.reservationStatus!=="checked_out"&&<div><dt>Accommodation balance</dt><dd>{money(status.balanceKobo/100)}</dd></div>}</dl>{status.expiresAt&&<p>Payment / arrival deadline: {new Date(status.expiresAt).toLocaleString("en-NG",{timeZone:"Africa/Lagos"})} (Lagos time).</p>}{status.note&&<p className="doj-dialog-note">{status.note}</p>}{status.checkoutUrl&&status.state==="payment_pending"&&status.paidKobo===0&&<a className="doj-btn" href={status.checkoutUrl}>Continue to secure checkout</a>}<details className="doj-receipt-policy"><summary>Booking terms agreed at checkout</summary><p>{status.policy}</p></details><button className="doj-text-link" onClick={()=>window.print()}><Printer size={16}/> Save / print details</button></>}<button className="doj-text-link" onClick={()=>setRevision(value=>value+1)}><RefreshCw size={16}/> Refresh booking</button>{updated&&<small className="doj-confirmation-updated">Updated {updated} (Lagos)</small>}<Link className="doj-text-link" href="/booking/recover">Find this booking on another device</Link><a className="doj-text-link" href="tel:+2349133898066"><Phone size={16}/> Call reception</a><Link className="doj-text-link" href="/rooms">Back to rooms</Link></section></main></div>;
+}
